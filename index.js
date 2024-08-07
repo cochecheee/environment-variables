@@ -56,14 +56,45 @@ app.get("/logout", (req, res) => {
     });
 });
 
-app.get("/secrets", (req, res) => {
+app.get("/secrets", async (req, res) => {
     // console.log(req.user);
     if (req.isAuthenticated()) {
-        res.render("secrets.ejs");
+
+        // TODO: Update this to pull in the user secret to render in secrets.ejs
+        const email = req.user.email;
+        console.log(email)
+        const result = await db.query("select secret from users where email = $1", [email])
+        const secret = result.rows[0].secret
+        console.log(secret)
+
+        res.render("secrets.ejs", { secret: secret });
+
     } else {
         res.redirect("/login");
     }
 });
+// TODO: Add GET route for submit button (work with authentication)
+app.get("/submit", (req, res) => {
+    if (req.isAuthenticated()) {
+        res.render("submit.ejs")
+    } else {
+        res.redirect('/login')
+    }
+
+})
+
+// TODO: Add POST route for submit button
+app.post("/submit", async (req, res) => {
+    const secret = req.body.secret;
+    // can get access to user through req by 
+    try {
+        const result = await db.query("update users set secret = $1 where email = $2", [secret, req.user.email])
+        res.redirect("/secrets")
+    } catch (err) {
+        console.log(err)
+    }
+
+})
 
 app.post(
     "/login",
@@ -149,6 +180,7 @@ app.get('/auth/google', passport.authenticate("google", {
     // what we want to get from this login
     scope: ["profile", "email"]
 }))
+
 
 passport.use("google", new GoogleStrategy({
     clientID: process.env.GG_CLIENT_ID,
